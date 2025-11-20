@@ -1,8 +1,6 @@
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 export async function POST(request: Request) {
   try {
     const body = await request.json()
@@ -15,6 +13,17 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+
+    // Verifica se a API key está configurada
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json(
+        { error: 'Configuração de email não encontrada. Por favor, entre em contato pelo WhatsApp.' },
+        { status: 500 }
+      )
+    }
+
+    // Inicializa o Resend apenas quando necessário
+    const resend = new Resend(process.env.RESEND_API_KEY)
 
     // Envia o email usando Resend
     const { data, error } = await resend.emails.send({
