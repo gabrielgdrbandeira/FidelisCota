@@ -195,7 +195,7 @@ export default function Contact() {
               <div className="mt-8 flex-1 flex items-end">
                 <div className="relative w-full">
                   <Image
-                    src="/logo2.png"
+                    src="/Logo2.png"
                     alt="Fidelis & Cota Logo"
                     width={800}
                     height={300}
