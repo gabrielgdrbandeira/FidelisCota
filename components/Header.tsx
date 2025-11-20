@@ -67,7 +67,7 @@ export default function Header() {
               <div className="text-lg md:text-xl lg:text-2xl font-bold text-primary group-hover:text-primary-700 transition-colors">
                 Fidelis & Cota
               </div>
-              <div className="hidden sm:block text-xs md:text-sm text-gray-neutral font-light">
+              <div className="text-xs md:text-sm text-gray-neutral font-light">
                 Advocacia e Consultoria
               </div>
             </div>
