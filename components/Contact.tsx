@@ -7,6 +7,47 @@ import { FaFacebook, FaLinkedin, FaYoutube, FaInstagram } from 'react-icons/fa'
 
 export default function Contact() {
   const [logoError, setLogoError] = useState(false)
+  const [formStatus, setFormStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
+  const [formMessage, setFormMessage] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setFormStatus('sending')
+    setFormMessage('')
+
+    const formData = new FormData(e.currentTarget)
+    const data = {
+      name: formData.get('name'),
+      email: formData.get('email'),
+      phone: formData.get('phone'),
+      subject: formData.get('subject'),
+      message: formData.get('message'),
+    }
+
+    try {
+      // Aqui você pode integrar com um serviço de email ou API
+      // Por enquanto, vamos usar mailto como fallback
+      const mailtoLink = `mailto:fideliscota@gmail.com?subject=${encodeURIComponent(data.subject as string)}&body=${encodeURIComponent(
+        `Nome: ${data.name}\nEmail: ${data.email}\nTelefone: ${data.phone}\n\nMensagem:\n${data.message}`
+      )}`
+      
+      // Abre o cliente de email padrão
+      window.location.href = mailtoLink
+      
+      setFormStatus('success')
+      setFormMessage('Redirecionando para seu cliente de email...')
+      
+      // Limpa o formulário após 2 segundos
+      setTimeout(() => {
+        e.currentTarget.reset()
+        setFormStatus('idle')
+        setFormMessage('')
+      }, 2000)
+    } catch (error) {
+      setFormStatus('error')
+      setFormMessage('Erro ao enviar mensagem. Por favor, tente novamente.')
+    }
+  }
   
   return (
     <section id="contato" className="py-20 bg-white">
@@ -172,7 +213,7 @@ export default function Contact() {
             <h3 className="text-xl md:text-2xl font-bold text-primary mb-6">
               Entre em contato
             </h3>
-            <form className="space-y-4">
+            <form className="space-y-4" onSubmit={handleSubmit}>
               <div>
                 <label
                   htmlFor="name"
@@ -249,10 +290,25 @@ export default function Contact() {
               </div>
               <button
                 type="submit"
-                className="w-full bg-primary hover:bg-primary-700 text-white px-6 py-4 rounded-lg transition-colors font-medium text-base md:text-lg"
+                disabled={formStatus === 'sending'}
+                className="w-full bg-primary hover:bg-primary-700 disabled:bg-primary/50 disabled:cursor-not-allowed text-white px-6 py-4 rounded-lg transition-colors font-medium text-base md:text-lg"
               >
-                Enviar Mensagem
+                {formStatus === 'sending' ? 'Enviando...' : 'Enviar Mensagem'}
               </button>
+              
+              {formMessage && (
+                <div
+                  className={`mt-4 p-4 rounded-lg text-sm md:text-base ${
+                    formStatus === 'success'
+                      ? 'bg-green-100 text-green-800'
+                      : formStatus === 'error'
+                      ? 'bg-red-100 text-red-800'
+                      : ''
+                  }`}
+                >
+                  {formMessage}
+                </div>
+              )}
             </form>
           </div>
         </div>
