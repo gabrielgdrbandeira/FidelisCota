@@ -17,35 +17,46 @@ export default function Contact() {
 
     const formData = new FormData(e.currentTarget)
     const data = {
-      name: formData.get('name'),
-      email: formData.get('email'),
-      phone: formData.get('phone'),
-      subject: formData.get('subject'),
-      message: formData.get('message'),
+      name: formData.get('name') as string,
+      email: formData.get('email') as string,
+      phone: formData.get('phone') as string,
+      subject: formData.get('subject') as string,
+      message: formData.get('message') as string,
     }
 
     try {
-      // Aqui você pode integrar com um serviço de email ou API
-      // Por enquanto, vamos usar mailto como fallback
-      const mailtoLink = `mailto:fideliscota@gmail.com?subject=${encodeURIComponent(data.subject as string)}&body=${encodeURIComponent(
-        `Nome: ${data.name}\nEmail: ${data.email}\nTelefone: ${data.phone}\n\nMensagem:\n${data.message}`
-      )}`
-      
-      // Abre o cliente de email padrão
-      window.location.href = mailtoLink
-      
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao enviar mensagem')
+      }
+
       setFormStatus('success')
-      setFormMessage('Redirecionando para seu cliente de email...')
+      setFormMessage('Mensagem enviada com sucesso! Entraremos em contato em breve.')
       
-      // Limpa o formulário após 2 segundos
+      // Limpa o formulário
+      e.currentTarget.reset()
+      
+      // Reseta o status após 5 segundos
       setTimeout(() => {
-        e.currentTarget.reset()
         setFormStatus('idle')
         setFormMessage('')
-      }, 2000)
+      }, 5000)
     } catch (error) {
       setFormStatus('error')
-      setFormMessage('Erro ao enviar mensagem. Por favor, tente novamente.')
+      setFormMessage(
+        error instanceof Error 
+          ? error.message 
+          : 'Erro ao enviar mensagem. Por favor, tente novamente ou entre em contato pelo WhatsApp.'
+      )
     }
   }
   
