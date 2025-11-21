@@ -110,51 +110,57 @@ Esta mensagem foi enviada através do formulário de contato do site.
     console.log('Enviando email via Resend para:', 'fideliscota@gmail.com')
     console.log('API Key presente:', resendApiKey ? 'Sim (primeiros 10 chars: ' + resendApiKey.substring(0, 10) + '...)' : 'Não')
 
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'Site Fidelis & Cota <onboarding@resend.dev>', // Use domínio verificado ou onboarding@resend.dev para testes
-        to: ['fideliscota@gmail.com'],
-        reply_to: email.trim(),
-        subject: `Contato do Site: ${subject.trim()}`,
-        html: emailHtml,
-        text: emailText,
-      }),
-    })
+    // Tenta diferentes domínios de teste do Resend
+    const fromDomains = [
+      'delivered@resend.dev',
+      'onboarding@resend.dev',
+      'Acme <onboarding@resend.dev>',
+    ]
+    
+    let lastError: any = null
+    let response: Response | null = null
+    
+    // Tenta cada domínio até um funcionar
+    for (const fromDomain of fromDomains) {
+      try {
+        console.log(`Tentando enviar com domínio: ${fromDomain}`)
+        
+        response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: `Site Fidelis & Cota <${fromDomain}>`,
+            to: ['fideliscota@gmail.com'],
+            reply_to: email.trim(),
+            subject: `Contato do Site: ${subject.trim()}`,
+            html: emailHtml,
+            text: emailText,
+          }),
+        })
+        
+        if (response.ok) {
+          console.log(`✅ Sucesso com domínio: ${fromDomain}`)
+          break
+        } else {
+          const errorData = await response.json().catch(() => ({}))
+          lastError = { status: response.status, data: errorData }
+          console.log(`❌ Falhou com ${fromDomain}:`, response.status, errorData)
+        }
+      } catch (err) {
+        lastError = err
+        console.error(`Erro ao tentar ${fromDomain}:`, err)
+      }
+    }
+    
+    if (!response || !response.ok) {
+      // Se nenhum domínio funcionou, lança o último erro
+      throw new Error('Todas as tentativas de envio falharam')
+    }
 
     console.log('Status da resposta Resend:', response.status, response.statusText)
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(async () => {
-        const text = await response.text().catch(() => 'Erro desconhecido')
-        return { message: text }
-      })
-      console.error('Erro completo do Resend:', JSON.stringify(errorData, null, 2))
-      console.error('Status HTTP:', response.status)
-      
-      // Mensagens de erro mais amigáveis baseadas no status
-      let userFriendlyMessage = 'Erro ao enviar mensagem. Por favor, tente novamente ou entre em contato pelo WhatsApp: (31) 99104-7474'
-      
-      if (response.status === 401 || response.status === 403) {
-        // Erro de autenticação - pode ser API key inválida ou domínio não verificado
-        const errorMsg = errorData.message || errorData.error || ''
-        if (errorMsg.includes('domain') || errorMsg.includes('Domain')) {
-          userFriendlyMessage = 'Erro de configuração do serviço de email. Por favor, entre em contato diretamente pelo WhatsApp: (31) 99104-7474'
-        } else {
-          userFriendlyMessage = 'Erro de autenticação no serviço de email. Verifique se a API key está correta. Por favor, entre em contato pelo WhatsApp: (31) 99104-7474'
-        }
-      } else if (response.status === 429) {
-        userFriendlyMessage = 'Muitas tentativas. Por favor, aguarde alguns minutos e tente novamente ou entre em contato pelo WhatsApp: (31) 99104-7474'
-      } else if (response.status >= 500) {
-        userFriendlyMessage = 'Serviço temporariamente indisponível. Por favor, tente novamente em alguns instantes ou entre em contato pelo WhatsApp: (31) 99104-7474'
-      }
-      
-      throw new Error(userFriendlyMessage)
-    }
 
     const result = await response.json()
     console.log('Email enviado com sucesso via Resend:', result.id)
@@ -173,6 +179,9 @@ Esta mensagem foi enviada através do formulário de contato do site.
       // Se já tiver uma mensagem amigável, usa ela
       if (error.message.includes('WhatsApp') || error.message.includes('tente novamente')) {
         errorMessage = error.message
+      } else if (error.message.includes('Todas as tentativas')) {
+        // Erro de configuração - todos os domínios falharam
+        errorMessage = 'Erro de configuração do serviço de email. Por favor, entre em contato diretamente pelo WhatsApp: (31) 99104-7474'
       } else {
         // Caso contrário, usa mensagem padrão amigável
         errorMessage = 'Erro ao enviar mensagem. Por favor, tente novamente ou entre em contato pelo WhatsApp: (31) 99104-7474'
