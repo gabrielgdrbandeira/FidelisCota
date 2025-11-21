@@ -108,6 +108,7 @@ Esta mensagem foi enviada através do formulário de contato do site.
 `
 
     console.log('Enviando email via Resend para:', 'fideliscota@gmail.com')
+    console.log('API Key presente:', resendApiKey ? 'Sim (primeiros 10 chars: ' + resendApiKey.substring(0, 10) + '...)' : 'Não')
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -128,16 +129,26 @@ Esta mensagem foi enviada através do formulário de contato do site.
     console.log('Status da resposta Resend:', response.status, response.statusText)
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido' }))
-      console.error('Erro do Resend:', errorData)
+      const errorData = await response.json().catch(async () => {
+        const text = await response.text().catch(() => 'Erro desconhecido')
+        return { message: text }
+      })
+      console.error('Erro completo do Resend:', JSON.stringify(errorData, null, 2))
+      console.error('Status HTTP:', response.status)
       
       // Mensagens de erro mais amigáveis baseadas no status
-      let userFriendlyMessage = 'Erro ao enviar mensagem. Por favor, tente novamente ou entre em contato pelo WhatsApp.'
+      let userFriendlyMessage = 'Erro ao enviar mensagem. Por favor, tente novamente ou entre em contato pelo WhatsApp: (31) 99104-7474'
       
       if (response.status === 401 || response.status === 403) {
-        userFriendlyMessage = 'Erro de autenticação no serviço de email. Por favor, entre em contato diretamente pelo WhatsApp: (31) 99104-7474'
+        // Erro de autenticação - pode ser API key inválida ou domínio não verificado
+        const errorMsg = errorData.message || errorData.error || ''
+        if (errorMsg.includes('domain') || errorMsg.includes('Domain')) {
+          userFriendlyMessage = 'Erro de configuração do serviço de email. Por favor, entre em contato diretamente pelo WhatsApp: (31) 99104-7474'
+        } else {
+          userFriendlyMessage = 'Erro de autenticação no serviço de email. Verifique se a API key está correta. Por favor, entre em contato pelo WhatsApp: (31) 99104-7474'
+        }
       } else if (response.status === 429) {
-        userFriendlyMessage = 'Muitas tentativas. Por favor, aguarde alguns minutos e tente novamente ou entre em contato pelo WhatsApp.'
+        userFriendlyMessage = 'Muitas tentativas. Por favor, aguarde alguns minutos e tente novamente ou entre em contato pelo WhatsApp: (31) 99104-7474'
       } else if (response.status >= 500) {
         userFriendlyMessage = 'Serviço temporariamente indisponível. Por favor, tente novamente em alguns instantes ou entre em contato pelo WhatsApp: (31) 99104-7474'
       }
