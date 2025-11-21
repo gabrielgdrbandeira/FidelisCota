@@ -1,5 +1,5 @@
 'use client'
-
+//
 import { useState } from 'react'
 import Image from 'next/image'
 import { FaEnvelope, FaPhone, FaWhatsapp, FaMapMarkerAlt, FaClock } from 'react-icons/fa'
