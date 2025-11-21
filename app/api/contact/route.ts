@@ -22,8 +22,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // FormSubmit - serviço gratuito que não precisa de chaves
-    // Apenas envia para o email especificado
+    // FormSubmit - IMPORTANTE: O email fideliscota@gmail.com precisa ser confirmado
+    // Acesse https://formsubmit.co e confirme o email para ativar o serviço
     const formData = new URLSearchParams()
     formData.append('name', name.trim())
     formData.append('email', email.trim())
@@ -34,8 +34,11 @@ export async function POST(request: Request) {
     formData.append('_subject', `Contato do Site: ${subject.trim()}`)
     formData.append('_template', 'box')
     formData.append('_captcha', 'false')
+    // Campo _url ajuda a evitar bloqueios
+    formData.append('_url', process.env.NEXT_PUBLIC_SITE_URL || 'https://fidelis-cota.vercel.app')
+    // Campo _next para redirecionamento (não usado em API, mas ajuda na validação)
+    formData.append('_next', process.env.NEXT_PUBLIC_SITE_URL || 'https://fidelis-cota.vercel.app')
 
-    // Envia via FormSubmit
     console.log('Enviando email via FormSubmit para:', 'fideliscota@gmail.com')
     console.log('Dados do formulário:', { name, email, phone, subject, message: message.substring(0, 50) + '...' })
     
@@ -49,7 +52,17 @@ export async function POST(request: Request) {
     })
 
     console.log('Status da resposta FormSubmit:', response.status, response.statusText)
-    console.log('Headers da resposta:', Object.fromEntries(response.headers.entries()))
+
+    // Tratamento específico para erro 403
+    if (response.status === 403) {
+      const errorText = await response.text().catch(() => '')
+      console.error('Erro 403 do FormSubmit:', errorText)
+      throw new Error(
+        'O serviço de email está bloqueando a requisição. ' +
+        'Por favor, verifique se o email fideliscota@gmail.com foi confirmado no FormSubmit. ' +
+        'Acesse sua caixa de entrada e confirme o email de ativação do FormSubmit.'
+      )
+    }
 
     // Verifica se a resposta é JSON válido
     const contentType = response.headers.get('content-type')
@@ -60,7 +73,7 @@ export async function POST(request: Request) {
       console.error('Resposta não-JSON do FormSubmit:', textResponse)
       console.error('Content-Type recebido:', contentType)
       
-      // Tenta fazer parse mesmo assim, caso seja JSON mas sem o header correto
+      // Tenta fazer parse mesmo assim
       try {
         result = JSON.parse(textResponse)
       } catch {
@@ -72,7 +85,6 @@ export async function POST(request: Request) {
 
     console.log('Resultado do FormSubmit:', result)
 
-    // FormSubmit pode retornar diferentes formatos de resposta
     // Verifica se há erro na resposta
     if (result.error || result.message?.toLowerCase().includes('error') || result.success === false) {
       console.error('Erro na resposta do FormSubmit:', result)
