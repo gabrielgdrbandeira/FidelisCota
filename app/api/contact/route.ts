@@ -22,80 +22,119 @@ export async function POST(request: Request) {
       )
     }
 
-    // FormSubmit - IMPORTANTE: O email fideliscota@gmail.com precisa ser confirmado
-    // Acesse https://formsubmit.co e confirme o email para ativar o serviço
-    const formData = new URLSearchParams()
-    formData.append('name', name.trim())
-    formData.append('email', email.trim())
-    formData.append('phone', (phone || '').trim())
-    formData.append('subject', subject.trim())
-    formData.append('message', message.trim())
-    formData.append('_to', 'fideliscota@gmail.com')
-    formData.append('_subject', `Contato do Site: ${subject.trim()}`)
-    formData.append('_template', 'box')
-    formData.append('_captcha', 'false')
-    // Campo _url ajuda a evitar bloqueios
-    formData.append('_url', process.env.NEXT_PUBLIC_SITE_URL || 'https://fidelis-cota.vercel.app')
-    // Campo _next para redirecionamento (não usado em API, mas ajuda na validação)
-    formData.append('_next', process.env.NEXT_PUBLIC_SITE_URL || 'https://fidelis-cota.vercel.app')
+    // Usando Resend - serviço confiável e popular com Next.js/Vercel
+    // Requer API key: crie em https://resend.com e adicione como variável de ambiente RESEND_API_KEY
+    const resendApiKey = process.env.RESEND_API_KEY
 
-    console.log('Enviando email via FormSubmit para:', 'fideliscota@gmail.com')
-    console.log('Dados do formulário:', { name, email, phone, subject, message: message.substring(0, 50) + '...' })
-    
-    const response = await fetch('https://formsubmit.co/ajax/fideliscota@gmail.com', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-      },
-      body: formData.toString(),
-    })
-
-    console.log('Status da resposta FormSubmit:', response.status, response.statusText)
-
-    // Tratamento específico para erro 403
-    if (response.status === 403) {
-      const errorText = await response.text().catch(() => '')
-      console.error('Erro 403 do FormSubmit:', errorText)
-      throw new Error(
-        'O serviço de email está bloqueando a requisição. ' +
-        'Por favor, verifique se o email fideliscota@gmail.com foi confirmado no FormSubmit. ' +
-        'Acesse sua caixa de entrada e confirme o email de ativação do FormSubmit.'
+    if (!resendApiKey) {
+      console.warn('RESEND_API_KEY não configurada. Usando fallback.')
+      // Fallback: retorna sucesso mas loga os dados (para desenvolvimento)
+      // Em produção, configure a API key do Resend
+      console.log('📧 Email que seria enviado:')
+      console.log('Para: fideliscota@gmail.com')
+      console.log('Assunto:', `Contato do Site: ${subject.trim()}`)
+      console.log('Dados:', { name, email, phone, subject, message })
+      
+      // Retorna sucesso para não quebrar o fluxo do usuário
+      // Mas você deve configurar o Resend para produção
+      return NextResponse.json(
+        { 
+          message: 'Mensagem recebida! Entraremos em contato em breve. ' +
+                   '(Nota: Configure RESEND_API_KEY para envio real de emails)'
+        },
+        { status: 200 }
       )
     }
 
-    // Verifica se a resposta é JSON válido
-    const contentType = response.headers.get('content-type')
-    let result: any
-    
-    if (!contentType || !contentType.includes('application/json')) {
-      const textResponse = await response.text()
-      console.error('Resposta não-JSON do FormSubmit:', textResponse)
-      console.error('Content-Type recebido:', contentType)
-      
-      // Tenta fazer parse mesmo assim
-      try {
-        result = JSON.parse(textResponse)
-      } catch {
-        throw new Error(`Resposta inválida do serviço de email. Status: ${response.status}`)
-      }
-    } else {
-      result = await response.json()
-    }
+    // Formata o email em HTML
+    const emailHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background-color: #1B2A49; color: white; padding: 20px; text-align: center; }
+            .content { background-color: #f9f9f9; padding: 20px; margin-top: 20px; }
+            .field { margin-bottom: 15px; }
+            .label { font-weight: bold; color: #1B2A49; }
+            .message { background-color: white; padding: 15px; border-left: 4px solid #1B2A49; margin-top: 15px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h2>Nova Mensagem de Contato</h2>
+              <p>Site Fidelis & Cota</p>
+            </div>
+            <div class="content">
+              <div class="field">
+                <span class="label">Nome:</span> ${name.trim()}
+              </div>
+              <div class="field">
+                <span class="label">Email:</span> ${email.trim()}
+              </div>
+              <div class="field">
+                <span class="label">Telefone:</span> ${phone?.trim() || 'Não informado'}
+              </div>
+              <div class="field">
+                <span class="label">Assunto:</span> ${subject.trim()}
+              </div>
+              <div class="message">
+                <span class="label">Mensagem:</span><br>
+                ${message.trim().replace(/\n/g, '<br>')}
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `
 
-    console.log('Resultado do FormSubmit:', result)
+    const emailText = `
+Nova mensagem de contato do site Fidelis & Cota
 
-    // Verifica se há erro na resposta
-    if (result.error || result.message?.toLowerCase().includes('error') || result.success === false) {
-      console.error('Erro na resposta do FormSubmit:', result)
-      throw new Error(result.message || result.error || 'Erro ao enviar mensagem via FormSubmit')
-    }
+Nome: ${name.trim()}
+Email: ${email.trim()}
+Telefone: ${phone?.trim() || 'Não informado'}
 
-    // Verifica status HTTP
+Assunto: ${subject.trim()}
+
+Mensagem:
+${message.trim()}
+
+---
+Esta mensagem foi enviada através do formulário de contato do site.
+`
+
+    console.log('Enviando email via Resend para:', 'fideliscota@gmail.com')
+
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Site Fidelis & Cota <onboarding@resend.dev>', // Use domínio verificado ou onboarding@resend.dev para testes
+        to: ['fideliscota@gmail.com'],
+        reply_to: email.trim(),
+        subject: `Contato do Site: ${subject.trim()}`,
+        html: emailHtml,
+        text: emailText,
+      }),
+    })
+
+    console.log('Status da resposta Resend:', response.status, response.statusText)
+
     if (!response.ok) {
-      console.error('Status HTTP não OK:', response.status, result)
-      throw new Error(result.message || `Erro HTTP ${response.status} ao enviar mensagem`)
+      const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido' }))
+      console.error('Erro do Resend:', errorData)
+      throw new Error(errorData.message || `Erro ao enviar email. Status: ${response.status}`)
     }
+
+    const result = await response.json()
+    console.log('Email enviado com sucesso via Resend:', result.id)
 
     return NextResponse.json(
       { message: 'Mensagem enviada com sucesso! Entraremos em contato em breve.' },
