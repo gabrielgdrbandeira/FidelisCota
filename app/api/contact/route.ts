@@ -130,7 +130,19 @@ Esta mensagem foi enviada através do formulário de contato do site.
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido' }))
       console.error('Erro do Resend:', errorData)
-      throw new Error(errorData.message || `Erro ao enviar email. Status: ${response.status}`)
+      
+      // Mensagens de erro mais amigáveis baseadas no status
+      let userFriendlyMessage = 'Erro ao enviar mensagem. Por favor, tente novamente ou entre em contato pelo WhatsApp.'
+      
+      if (response.status === 401 || response.status === 403) {
+        userFriendlyMessage = 'Erro de autenticação no serviço de email. Por favor, entre em contato diretamente pelo WhatsApp: (31) 99104-7474'
+      } else if (response.status === 429) {
+        userFriendlyMessage = 'Muitas tentativas. Por favor, aguarde alguns minutos e tente novamente ou entre em contato pelo WhatsApp.'
+      } else if (response.status >= 500) {
+        userFriendlyMessage = 'Serviço temporariamente indisponível. Por favor, tente novamente em alguns instantes ou entre em contato pelo WhatsApp: (31) 99104-7474'
+      }
+      
+      throw new Error(userFriendlyMessage)
     }
 
     const result = await response.json()
@@ -143,10 +155,18 @@ Esta mensagem foi enviada através do formulário de contato do site.
   } catch (error) {
     console.error('Erro ao enviar email:', error)
     
-    // Mensagem de erro mais específica
-    const errorMessage = error instanceof Error 
-      ? error.message 
-      : 'Erro ao enviar mensagem. Por favor, tente novamente ou entre em contato pelo WhatsApp.'
+    // Mensagem de erro amigável e consistente
+    let errorMessage = 'Erro ao enviar mensagem. Por favor, tente novamente ou entre em contato pelo WhatsApp: (31) 99104-7474'
+    
+    if (error instanceof Error) {
+      // Se já tiver uma mensagem amigável, usa ela
+      if (error.message.includes('WhatsApp') || error.message.includes('tente novamente')) {
+        errorMessage = error.message
+      } else {
+        // Caso contrário, usa mensagem padrão amigável
+        errorMessage = 'Erro ao enviar mensagem. Por favor, tente novamente ou entre em contato pelo WhatsApp: (31) 99104-7474'
+      }
+    }
     
     return NextResponse.json(
       { error: errorMessage },

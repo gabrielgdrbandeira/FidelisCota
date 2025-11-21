@@ -55,7 +55,7 @@ export default function Contact() {
       setFormMessage(
         error instanceof Error 
           ? error.message 
-          : 'Erro ao enviar mensagem. Por favor, tente novamente ou entre em contato pelo WhatsApp.'
+          : 'Erro ao enviar mensagem. Por favor, tente novamente ou entre em contato pelo WhatsApp: (31) 99104-7474'
       )
     }
   }
